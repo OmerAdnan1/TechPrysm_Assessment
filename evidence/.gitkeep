@@ -1,0 +1,4 @@
+# Deliverable (brief S6.3). Will hold, at minimum:
+#   evidence/discovery-<id>/   trace.jsonl + screenshots + result.json  (real LLM run)
+#   evidence/replay-<id>/      trace.jsonl + result.json                (happy-path replay)
+#   evidence/replay-<id>-error/ trace.jsonl + failure bundle             (error-path replay)

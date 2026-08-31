@@ -1,0 +1,31 @@
+# Example tenant overlay (ADR-014).
+# Sparse patch merged on top of config/default.yaml AND on top of a base Capability
+# artifact. Demonstrates how one recorded flow is reused for a specific institution
+# without re-recording: tighten the allowlist, add tenant-specific recoverable
+# conditions, override a locator that drifted, change a parameter default.
+
+tenant_id: parabank-demo
+base: default
+
+allowlist:
+  origins:
+    - "https://parabank.parasoft.com"
+  routes:
+    - "/parabank/**"
+
+replay:
+  recoverable:
+    - condition: PARABANK_INTERNAL_ERROR_PAGE
+      when_text_matches: "(?i)an internal error has occurred"
+      handler: reload_and_retry
+
+# Per-capability, per-step locator overrides. Keyed by capability id + step index.
+# Empty here — populated only when a stability run flags drift for this tenant.
+capability_overrides: {}
+#   lookup_member_balance@1:
+#     "3":
+#       target:
+#         strategies:
+#           - kind: role_name
+#             role: link
+#             name: "Accounts Overview"

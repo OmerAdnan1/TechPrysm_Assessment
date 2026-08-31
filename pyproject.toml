@@ -1,0 +1,60 @@
+[project]
+name = "cua"
+version = "0.1.0"
+description = "Computer-Use Automation: LLM discovers a UI flow once, then replays it deterministically as a typed, reusable capability."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "Omer Adnan" }]
+
+# Runtime dependencies. Kept deliberately small; each is justified in ARCHITECTURE.md.
+dependencies = [
+    "anthropic>=0.40",       # LLM client for the discovery loop (ADR-004)
+    "playwright>=1.48",       # WebSurface implementation (ADR-003, ADR-005)
+    "pydantic>=2.9",          # Typed artifact schema + all wire models (ADR-007)
+    "pydantic-settings>=2.5", # Typed config loading (config module)
+    "typer>=0.12",            # CLI verbs: discover / replay / operator / catalog / stability
+    "pyyaml>=6.0",            # config/*.yaml and tenant overlays
+    "structlog>=24.4",        # JSONL structured tracing (ADR-009 evidence)
+    # Session Host control-plane transport (ADR-012). FastAPI is the current pick;
+    # revisit vs. stdlib http.server during the `session` module deep-dive.
+    "fastapi>=0.115",
+    "uvicorn>=0.32",
+    "httpx>=0.27",            # Session Host client used by runners + operator CLI
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.7",
+    "pyright>=1.1.386",
+    "pytest>=8.3",
+    "pytest-cov>=5.0",
+]
+
+[project.scripts]
+cua = "cua.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cua"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.pyright]
+include = ["src", "tests"]
+pythonVersion = "3.12"
+typeCheckingMode = "strict"
+reportMissingTypeStubs = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

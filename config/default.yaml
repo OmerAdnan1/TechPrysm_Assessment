@@ -1,0 +1,100 @@
+# Default policy + run configuration.
+# Loaded by cua.config into a typed Settings model. Tenant overlays (config/tenants/*.yaml)
+# are merged on top of this at load time. Enforcement lives in cua.policy / cua.surface,
+# NEVER in the LLM prompt (ADR-010).
+
+schema_version: 1
+
+# ---------------------------------------------------------------------------
+# Allowlist — the agent may not act outside this. Checked on every Surface.perform().
+# ---------------------------------------------------------------------------
+allowlist:
+  origins:
+    - "https://parabank.parasoft.com"
+    - "https://www.saucedemo.com"
+  # URL path globs that navigation / clicks-that-navigate are allowed to reach.
+  routes:
+    - "/parabank/**"
+    - "/**"                       # SauceDemo is single-origin; tighten per tenant
+  # Action types the agent is permitted to emit at all.
+  action_types:
+    - navigate
+    - click
+    - type_text
+    - select_option
+    - press_key
+    - read_value
+    - wait_for
+    - assert_condition
+    - dismiss_dialog
+
+# ---------------------------------------------------------------------------
+# Risk policy — how the risky/irreversible class is handled (ADR-010).
+# mode: block | confirm | flag
+# ---------------------------------------------------------------------------
+risk_policy:
+  default_mode: confirm
+  # Actions matching any rule below are classified risky regardless of their base class.
+  risky_when:
+    - action: type_text
+      target_role: textbox
+      target_name_matches: "(?i)password|ssn|social security|pin"
+    - action: click
+      target_name_matches: "(?i)transfer|pay|submit payment|confirm|delete|close account"
+    - action: navigate
+      url_not_in_allowlist: true
+  # Per-mode behaviour.
+  modes:
+    block:   { proceed: false, escalate: false }
+    confirm: { proceed: false, escalate: true }   # -> intervention: POLICY_BLOCK_NEEDS_HUMAN
+    flag:    { proceed: true,  escalate: false }   # proceed but mark the step in the trace
+
+# ---------------------------------------------------------------------------
+# Redaction — sensitivity-declared scrubbing, applied at every sink (ADR-011).
+# Declared sensitivity on a param/output wins; the patterns here are a backstop only.
+# ---------------------------------------------------------------------------
+redaction:
+  policy_by_sensitivity:
+    secret:    drop          # never written anywhere
+    pii:       mask_last4    # ****-**-1234
+    financial: mask_all      # $***
+    public:    keep
+  backstop_patterns:
+    - name: us_ssn
+      regex: "\\b\\d{3}-\\d{2}-\\d{4}\\b"
+    - name: bearer_token
+      regex: "(?i)bearer\\s+[a-z0-9._-]{20,}"
+    - name: card_number
+      regex: "\\b(?:\\d[ -]*?){13,19}\\b"
+
+# ---------------------------------------------------------------------------
+# Run + replay behaviour.
+# ---------------------------------------------------------------------------
+run:
+  max_steps: 40
+  step_timeout_s: 20
+  run_timeout_s: 300
+  no_progress_step_limit: 4       # -> stuck condition NO_PROGRESS_N_STEPS
+
+replay:
+  locator_resolve_timeout_s: 10
+  transient_retry:
+    max_attempts: 3
+    backoff_s: [1, 3, 7]
+  # Detectors for the result taxonomy (ADR-008). Ordered; first match wins.
+  business_outcomes:
+    - code: MEMBER_NOT_FOUND
+      when_text_matches: "(?i)could not be found|no records|does not exist"
+    - code: INSUFFICIENT_FUNDS
+      when_text_matches: "(?i)insufficient funds|cannot be completed"
+  recoverable:
+    - condition: SESSION_INTERSTITIAL
+      when_text_matches: "(?i)your session|please sign in again"
+      handler: reauthenticate
+    - condition: TRANSIENT_LOAD
+      when_http_status_in: [502, 503, 504]
+      handler: wait_retry
+
+session:
+  lease_ttl_s: 900
+  headed: true

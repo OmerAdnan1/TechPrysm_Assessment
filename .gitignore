@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.pyright/
+.mypy_cache/
+
+# Secrets / local config
+.env
+.env.local
+
+# Runtime, not source of truth
+interventions/*
+!interventions/.gitkeep
+runs/
+*.trace.zip
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Screen recordings (keep small curated ones under evidence/ only if intentional)
+*.mp4
+*.mov
+!evidence/**/*.mp4
